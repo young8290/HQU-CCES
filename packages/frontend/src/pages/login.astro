@@ -1,24 +1,14 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import LoginForm from '../components/auth/LoginForm';
 ---
 <Layout title="登录 - 综测管理系统">
-  <div id="login-root" class="min-h-screen"></div>
+  <LoginForm client:load />
 </Layout>
 
 <script>
   import { isLoggedIn } from '../lib/auth';
   if (isLoggedIn()) {
     window.location.href = '/dashboard';
-  }
-</script>
-
-<script>
-  import { createElement } from 'react';
-  import { createRoot } from 'react-dom/client';
-  import LoginForm from '../components/auth/LoginForm';
-
-  const el = document.getElementById('login-root');
-  if (el) {
-    createRoot(el).render(createElement(LoginForm));
   }
 </script>

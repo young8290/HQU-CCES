@@ -43,6 +43,14 @@ app.use('/api/import', importRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/academic-years', academicYearRoutes);
 
+app.get('/', (req, res) => {
+  res.json({
+    name: 'comprehensive-eval-backend',
+    status: 'ok',
+    health: '/api/health',
+  });
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
