@@ -8,6 +8,7 @@ export default defineConfig({
   vite: {
     plugins: [tailwindcss()],
     server: {
+      allowedHosts: ['zongce.youngspace.top'],
       proxy: {
         '/api': 'http://localhost:4000',
         '/ws': {

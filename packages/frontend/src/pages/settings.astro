@@ -1,31 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import SettingsApp from '../components/pages/SettingsApp';
 ---
-<Layout title="系统设置 - 综测管理系统">
-  <div class="flex h-screen bg-neutral-50 dark:bg-neutral-950">
-    <div id="sidebar-root"></div>
-    <main class="flex-1 overflow-auto">
-      <div class="p-6 lg:p-8 max-w-5xl mx-auto">
-        <div id="settings-root"></div>
-      </div>
-    </main>
-  </div>
+<Layout title="系统设置 - 综测填写系统">
+  <SettingsApp client:only="react" />
 </Layout>
-
-<script>
-  import { isLoggedIn } from '../lib/auth';
-  if (!isLoggedIn()) window.location.href = '/login';
-</script>
-
-<script>
-  import { createElement } from 'react';
-  import { createRoot } from 'react-dom/client';
-  import Sidebar from '../components/layout/Sidebar';
-  import SettingsPage from '../components/settings/SettingsPage';
-
-  const sidebarEl = document.getElementById('sidebar-root');
-  if (sidebarEl) createRoot(sidebarEl).render(createElement(Sidebar, { currentPath: '/settings' }));
-
-  const mainEl = document.getElementById('settings-root');
-  if (mainEl) createRoot(mainEl).render(createElement(SettingsPage));
-</script>

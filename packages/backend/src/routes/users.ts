@@ -45,12 +45,12 @@ router.post('/:id/reset-password', adminOnly, async (req: Request, res: Response
   }
 });
 
-router.post('/generate-monitors/:gradeId', adminOnly, async (req: Request, res: Response) => {
+router.post('/generate-monitors/:gradeId?', adminOnly, async (req: Request, res: Response) => {
   try {
-    const gradeId = parseInt(req.params.gradeId as string);
+    const gradeId = req.params.gradeId ? parseInt(req.params.gradeId as string) : undefined;
     const overwrite = req.body.overwrite || false;
     const results = await userService.batchGenerateMonitors({
-      gradeId,
+      gradeId: gradeId || 0,
       overwrite,
     });
     res.json(results);

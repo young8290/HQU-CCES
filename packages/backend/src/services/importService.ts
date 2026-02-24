@@ -3,6 +3,20 @@ import ExcelJS from 'exceljs';
 import { calculateAcademicScore, calculateSportsBaseScore } from '../utils/calculation.js';
 import * as scoreService from './scoreService.js';
 
+// Safely read cell value as string (handles null, number, richText, formula)
+function cellText(cell: ExcelJS.Cell): string {
+  const v = cell.value;
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'object' && 'richText' in v) {
+    return (v as any).richText.map((r: any) => r.text).join('').trim();
+  }
+  if (typeof v === 'object' && 'result' in v) {
+    const r = (v as any).result;
+    return r != null ? String(r).trim() : '';
+  }
+  return String(v).trim();
+}
+
 export async function importAcademicScores(buffer: Buffer, academicYearId: number, userId: number, classId?: number) {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer as any);
@@ -15,9 +29,9 @@ export async function importAcademicScores(buffer: Buffer, academicYearId: numbe
 
   for (let rowNum = 2; rowNum <= worksheet.rowCount; rowNum++) {
     const row = worksheet.getRow(rowNum);
-    const studentNo = row.getCell(1).text?.trim();
-    const name = row.getCell(2).text?.trim();
-    const gpaStr = row.getCell(6).text?.trim();
+    const studentNo = cellText(row.getCell(1));
+    const name = cellText(row.getCell(2));
+    const gpaStr = cellText(row.getCell(6));
 
     if (!studentNo) continue;
 
@@ -83,9 +97,9 @@ export async function importSportsScores(buffer: Buffer, academicYearId: number,
 
   for (let rowNum = 2; rowNum <= worksheet.rowCount; rowNum++) {
     const row = worksheet.getRow(rowNum);
-    const studentNo = row.getCell(1).text?.trim();
-    const name = row.getCell(2).text?.trim();
-    const baseStr = row.getCell(8).text?.trim();
+    const studentNo = cellText(row.getCell(1));
+    const name = cellText(row.getCell(2));
+    const baseStr = cellText(row.getCell(8));
 
     if (!studentNo) continue;
 
@@ -146,42 +160,30 @@ export async function importPersonalForm(buffer: Buffer, academicYearId: number,
   let failCount = 0;
   const failures: any[] = [];
 
-  // Process each worksheet (each could be a student)
+  // Personal form format per worksheet:
+  // Row 1: A1="学号", B1=<student_no>, C1="姓名", D1=<student_name>
+  // Row 2: Headers - B2="德育测评", C2="创新与实践能力", D2="体育附加分", E2="美育", F2="劳动教育", G2="公益服务与社会工作", H2="附加分"
+  // Row 3: A3="分数（只填数字）", B3-H3 = numeric scores
+  // Row 4: A4="备注", B4-H4 = remark text
+
+  const columnMapping: Array<{ col: number; category: string }> = [
+    { col: 2, category: 'moral' },        // B: 德育测评（100分）
+    { col: 3, category: 'innovation' },    // C: 创新与实践能力（13分）
+    { col: 4, category: 'sports_reward' }, // D: 体育附加分（3分）
+    { col: 5, category: 'aesthetics' },    // E: 美育（6分）
+    { col: 6, category: 'labor' },         // F: 劳动教育（4分）
+    { col: 7, category: 'public_service' },// G: 公益服务与社会工作（10分）
+    { col: 8, category: 'bonus' },         // H: 附加分（5分）
+  ];
+
   for (const worksheet of workbook.worksheets) {
     try {
-      // Try to find student number in the worksheet
-      // Common patterns: cell B2 or A2 contains student number
-      let studentNo = '';
-      let studentName = '';
+      // Read student info from Row 1
+      const studentNo = cellText(worksheet.getCell('B1'));
+      const studentName = cellText(worksheet.getCell('D1'));
 
-      // Search for student number in first few rows
-      for (let r = 1; r <= 10; r++) {
-        const row = worksheet.getRow(r);
-        for (let c = 1; c <= 10; c++) {
-          const cellValue = row.getCell(c).text?.trim() || '';
-          if (cellValue.includes('学号')) {
-            // Next cell or same row next column
-            const nextCell = row.getCell(c + 1).text?.trim();
-            if (nextCell && /^\d+$/.test(nextCell)) {
-              studentNo = nextCell;
-            }
-          }
-          if (cellValue.includes('姓名')) {
-            const nextCell = row.getCell(c + 1).text?.trim();
-            if (nextCell) studentName = nextCell;
-          }
-        }
-      }
-
-      if (!studentNo) {
-        // Try getting from specific cells
-        studentNo = worksheet.getCell('B2').text?.trim() || worksheet.getCell('D2').text?.trim() || '';
-        studentName = worksheet.getCell('B3').text?.trim() || worksheet.getCell('D3').text?.trim() || '';
-      }
-
-      if (!studentNo) {
-        failCount++;
-        failures.push({ row: 0, studentNo: '', name: worksheet.name, reason: '无法识别学号' });
+      if (!studentNo || studentNo === '学号填这里') {
+        // Skip template placeholder sheets silently
         continue;
       }
 
@@ -198,48 +200,34 @@ export async function importPersonalForm(buffer: Buffer, academicYearId: number,
         continue;
       }
 
-      // Parse scores from the form - look for score values
-      const scoreMapping: Record<string, { searchTerms: string[]; category: string }> = {
-        moral: { searchTerms: ['德育', '思想品德'], category: 'moral' },
-        innovation: { searchTerms: ['创新', '实践'], category: 'innovation' },
-        sports_reward: { searchTerms: ['体育奖励', '体育加分'], category: 'sports_reward' },
-        aesthetics: { searchTerms: ['美育'], category: 'aesthetics' },
-        labor: { searchTerms: ['劳动'], category: 'labor' },
-        public_service: { searchTerms: ['公益', '社会工作'], category: 'public_service' },
-        bonus: { searchTerms: ['附加', '加分'], category: 'bonus' },
-      };
+      // Read scores from Row 3 and remarks from Row 4
+      const scoreRow = worksheet.getRow(3);
+      const remarkRow = worksheet.getRow(4);
 
-      for (const [key, mapping] of Object.entries(scoreMapping)) {
-        for (let r = 1; r <= worksheet.rowCount; r++) {
-          const row = worksheet.getRow(r);
-          for (let c = 1; c <= 15; c++) {
-            const cellText = row.getCell(c).text?.trim() || '';
-            if (mapping.searchTerms.some((term) => cellText.includes(term))) {
-              // Look for the score value in nearby cells
-              for (let nc = c + 1; nc <= Math.min(c + 5, 15); nc++) {
-                const val = parseFloat(row.getCell(nc).text?.trim() || '');
-                if (!isNaN(val)) {
-                  // Look for remark
-                  let remark: string | null = null;
-                  const remarkCell = row.getCell(nc + 1).text?.trim();
-                  if (remarkCell && !/^\d/.test(remarkCell)) {
-                    remark = remarkCell;
-                  }
+      for (const mapping of columnMapping) {
+        const scoreCell = scoreRow.getCell(mapping.col);
+        const remarkCell = remarkRow.getCell(mapping.col);
 
-                  await scoreService.updateScore({
-                    studentId: student.id,
-                    academicYearId,
-                    category: mapping.category as any,
-                    value: val,
-                    remark,
-                    updatedBy: userId,
-                  });
-                  break;
-                }
-              }
-              break;
-            }
-          }
+        // Robustly read score: handle both numeric and text cells
+        let val: number;
+        const rawValue = scoreCell.value;
+        if (typeof rawValue === 'number') {
+          val = rawValue;
+        } else {
+          val = parseFloat(cellText(scoreCell));
+        }
+
+        const remarkText = cellText(remarkCell);
+
+        if (!isNaN(val)) {
+          await scoreService.updateScore({
+            studentId: student.id,
+            academicYearId,
+            category: mapping.category as any,
+            value: val,
+            remark: remarkText || null,
+            updatedBy: userId,
+          });
         }
       }
 

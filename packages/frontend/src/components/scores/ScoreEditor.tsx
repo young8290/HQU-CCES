@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, type ChangeEvent } from 'react';
 import { useScores } from '../../hooks/useScores';
-import { SCORE_RULES, SCORE_CATEGORIES_ORDER, validateScore } from '../../lib/validation';
+import { SCORE_RULES, SCORE_CATEGORIES_ORDER, validateScore, isCategoryEditable } from '../../lib/validation';
 import { getUser } from '../../lib/auth';
 
 interface Props {
@@ -170,7 +170,7 @@ export default function ScoreEditor({ classId, onBack }: Props) {
                 <th
                   key={cat}
                   className={`px-3 py-3 text-center font-medium whitespace-nowrap cursor-pointer hover:text-primary-600 ${
-                    SCORE_RULES[cat].editable
+                    isCategoryEditable(cat, user?.role || 'monitor')
                       ? 'text-neutral-700 dark:text-neutral-200'
                       : 'text-neutral-400 dark:text-neutral-500'
                   }`}
@@ -209,7 +209,7 @@ export default function ScoreEditor({ classId, onBack }: Props) {
                   const hasError = errors.has(errorKey);
                   const isEditing = editingRemark?.studentId === student.id && editingRemark?.category === cat;
 
-                  if (!rule.editable) {
+                  if (!isCategoryEditable(cat, user?.role || 'monitor')) {
                     return (
                       <td key={cat} className="px-3 py-2 text-center text-neutral-400 dark:text-neutral-500 whitespace-nowrap">
                         <span className={cat === 'total' ? 'font-bold text-neutral-950 dark:text-white text-base' : ''}>

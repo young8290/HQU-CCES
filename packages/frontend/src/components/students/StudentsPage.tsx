@@ -30,6 +30,7 @@ export default function StudentsPage() {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showBatchModal, setShowBatchModal] = useState(false);
+  const [showGlobalImportModal, setShowGlobalImportModal] = useState(false);
   const [showGradeModal, setShowGradeModal] = useState(false);
   const [showClassModal, setShowClassModal] = useState(false);
   const [newStudentNo, setNewStudentNo] = useState('');
@@ -39,6 +40,7 @@ export default function StudentsPage() {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [batchFile, setBatchFile] = useState<File | null>(null);
+  const [globalImportFile, setGlobalImportFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
   const user = getUser();
@@ -140,6 +142,25 @@ export default function StudentsPage() {
     }
   };
 
+  const handleGlobalImport = async () => {
+    if (!globalImportFile) return;
+    setUploading(true);
+    setError('');
+    try {
+      const result = await api.upload('/students/batch', globalImportFile);
+      setShowGlobalImportModal(false);
+      setGlobalImportFile(null);
+      setSuccessMsg(`一键导入成功: 新增${result.added}人, 跳过${result.skipped}人${result.failed ? `, 失败${result.failed}人` : ''}`);
+      // Reload grades since new grades/classes may have been created
+      await loadGrades();
+      setTimeout(() => setSuccessMsg(''), 8000);
+    } catch (err: any) {
+      setError(err.message || '导入失败');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleDownloadTemplate = async () => {
     try {
       await api.download('/students/template/download', '学生导入模板.xlsx');
@@ -219,6 +240,22 @@ export default function StudentsPage() {
           <h1 className="text-2xl font-bold text-neutral-950 dark:text-white font-headings">学生管理</h1>
           <p className="text-neutral-500 dark:text-neutral-400 mt-1">管理年级、班级和学生信息</p>
         </div>
+        {isAdmin && (
+          <div className="flex gap-2">
+            <button
+              onClick={handleDownloadTemplate}
+              className="px-4 py-2 text-sm rounded-xl border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+            >
+              下载模板
+            </button>
+            <button
+              onClick={() => setShowGlobalImportModal(true)}
+              className="px-4 py-2 text-sm rounded-xl bg-primary-500 text-white hover:bg-primary-600 transition-colors"
+            >
+              一键导入学生
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Messages */}
@@ -470,6 +507,37 @@ export default function StudentsPage() {
             <div className="flex justify-end gap-2">
               <button onClick={() => setShowClassModal(false)} className="px-4 py-2 text-sm rounded-xl border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300">取消</button>
               <button onClick={handleAddClass} className="px-4 py-2 text-sm rounded-xl bg-primary-500 text-white hover:bg-primary-600">创建</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Global Import Modal */}
+      {showGlobalImportModal && (
+        <Modal title="一键导入学生" onClose={() => setShowGlobalImportModal(false)}>
+          <div className="space-y-4">
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">
+              上传Excel文件，格式：A列学号、B列姓名、C列年级（如"2023级"）、D列班级（如"计算机科学与技术1班"）。
+              系统会自动创建不存在的年级和班级。
+            </p>
+            <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400 text-xs">
+              提示：可点击"下载模板"获取标准格式模板
+            </div>
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={(e) => setGlobalImportFile(e.target.files?.[0] || null)}
+              className="block w-full text-sm text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-600 hover:file:bg-primary-100 dark:file:bg-primary-500/10 dark:file:text-primary-400"
+            />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowGlobalImportModal(false)} className="px-4 py-2 text-sm rounded-xl border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300">取消</button>
+              <button
+                onClick={handleGlobalImport}
+                disabled={!globalImportFile || uploading}
+                className="px-4 py-2 text-sm rounded-xl bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50"
+              >
+                {uploading ? '导入中...' : '开始导入'}
+              </button>
             </div>
           </div>
         </Modal>

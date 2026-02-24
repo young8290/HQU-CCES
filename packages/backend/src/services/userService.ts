@@ -64,7 +64,7 @@ export async function batchGenerateMonitors(options: {
 }) {
   // Get all classes, optionally filtered by grade
   const where: any = {};
-  if (options.gradeId) where.gradeId = options.gradeId;
+  if (options.gradeId && options.gradeId > 0) where.gradeId = options.gradeId;
 
   const classes = await prisma.class.findMany({
     where,

@@ -27,11 +27,9 @@ export default function LoginForm() {
       <div className="w-full max-w-md">
         {/* Logo / Title */}
         <div className="text-center mb-8 animate-fadeUp">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary-500 text-white text-2xl font-bold mb-4">
-            综
-          </div>
+          <img src="/学院logo.png" alt="学院logo" className="w-16 h-16 rounded-2xl object-contain mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-neutral-950 dark:text-white font-headings">
-            综测管理系统
+            综测填写系统
           </h1>
           <p className="mt-2 text-neutral-500 dark:text-neutral-400">
             计算机科学与技术学院
@@ -87,9 +85,12 @@ export default function LoginForm() {
           </form>
         </div>
 
-        <p className="text-center mt-6 text-xs text-neutral-400 dark:text-neutral-500">
-          © 2025-2026 计算机科学与技术学院 学术部
-        </p>
+        <div className="flex flex-col items-center mt-6 gap-2">
+          <img src="/学术部logo.png" alt="学术部logo" className="w-10 h-10 object-contain opacity-70" />
+          <p className="text-xs text-neutral-400 dark:text-neutral-500">
+            © 2025-2026 计算机科学与技术学院 学术部
+          </p>
+        </div>
       </div>
     </div>
   );

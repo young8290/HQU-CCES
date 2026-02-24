@@ -32,7 +32,13 @@ export default function ExportPage() {
     try {
       const data = await api.get('/grades');
       setGrades(data);
-      if (data.length > 0) {
+      if (!isAdmin && user?.gradeId) {
+        setSelectedGrade(user.gradeId);
+        loadClasses(user.gradeId);
+        if (user?.classId) {
+          setSelectedClass(user.classId);
+        }
+      } else if (data.length > 0) {
         setSelectedGrade(data[0].id);
         loadClasses(data[0].id);
       }
@@ -57,7 +63,7 @@ export default function ExportPage() {
   };
 
   const handleExport = async (type: string) => {
-    if (!selectedClass && type !== 'all' && type !== 'accounts') return;
+    if (!selectedClass && type !== 'all' && type !== 'accounts' && type !== 'failed') return;
     setExporting(true);
     setError('');
     setSuccessMsg('');
@@ -66,19 +72,24 @@ export default function ExportPage() {
       let filename = '';
       let endpoint = '';
 
+      // Build grade+class name prefix
+      const gradeName = grades.find(g => g.id === selectedGrade)?.name || '';
+      const className = classes.find(c => c.id === selectedClass)?.name || '';
+      const prefix = `${gradeName}${className}`;
+
       switch (type) {
         case 'attachment2':
           endpoint = `/export/attachment2/${selectedClass}`;
-          filename = `附件2_${selectedClass}.xlsx`;
+          filename = `${prefix}附件2.xlsx`;
           break;
         case 'attachment4':
           endpoint = `/export/attachment4/${selectedClass}`;
-          filename = `附件4_${selectedClass}.xlsx`;
+          filename = `${prefix}附件4.xlsx`;
           break;
         case 'all':
           if (!selectedGrade) return;
           endpoint = `/export/all/${selectedGrade}`;
-          filename = `全部附件_${selectedGrade}.zip`;
+          filename = `${gradeName}全部附件.zip`;
           break;
         case 'failed':
           endpoint = `/export/failed-records`;
@@ -126,7 +137,8 @@ export default function ExportPage() {
           <select
             value={selectedGrade || ''}
             onChange={(e) => handleGradeChange(Number(e.target.value))}
-            className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+            disabled={!isAdmin}
+            className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/30 disabled:opacity-50"
           >
             <option value="">请选择年级</option>
             {grades.map((g) => (
@@ -139,7 +151,8 @@ export default function ExportPage() {
           <select
             value={selectedClass || ''}
             onChange={(e) => setSelectedClass(Number(e.target.value))}
-            className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+            disabled={!isAdmin && !!user?.classId}
+            className="w-full px-3 py-2 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/30 disabled:opacity-50"
           >
             <option value="">请选择班级</option>
             {classes.map((c) => (
@@ -153,39 +166,43 @@ export default function ExportPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <ExportCard
           title="导出附件2"
-          description="按班级导出附件2格式的成绩表，从第6行开始填写"
+          description="复制附件2模板并填入数据，B6开始填写学号，无测评学年列"
           disabled={!selectedClass || exporting}
           onClick={() => handleExport('attachment2')}
           icon="📊"
         />
-        <ExportCard
-          title="导出附件4"
-          description="按班级导出附件4格式的成绩表，从第2行开始填写"
-          disabled={!selectedClass || exporting}
-          onClick={() => handleExport('attachment4')}
-          icon="📋"
-        />
-        <ExportCard
-          title="导出全部附件(ZIP)"
-          description="导出选定年级下所有班级的附件2和附件4，打包为ZIP"
-          disabled={!selectedGrade || exporting}
-          onClick={() => handleExport('all')}
-          icon="📦"
-        />
-        <ExportCard
-          title="导出导入失败记录"
-          description="导出最近导入过程中未匹配到学生的记录"
-          disabled={exporting}
-          onClick={() => handleExport('failed')}
-          icon="⚠️"
-        />
-        <ExportCard
-          title="导出账号列表"
-          description="导出所有班长账号信息（用户名、密码）"
-          disabled={exporting}
-          onClick={() => handleExport('accounts')}
-          icon="🔑"
-        />
+        {isAdmin && (
+          <>
+            <ExportCard
+              title="导出附件4"
+              description="复制附件4模板并填入数据，A2开始填写，文本/数字按模板格式，无总分列"
+              disabled={!selectedClass || exporting}
+              onClick={() => handleExport('attachment4')}
+              icon="📋"
+            />
+            <ExportCard
+              title="导出全部附件(ZIP)"
+              description="导出选定年级下所有班级的附件2和附件4，打包为ZIP"
+              disabled={!selectedGrade || exporting}
+              onClick={() => handleExport('all')}
+              icon="📦"
+            />
+            <ExportCard
+              title="导出导入失败记录"
+              description="导出最近导入过程中未匹配到学生的记录"
+              disabled={exporting}
+              onClick={() => handleExport('failed')}
+              icon="⚠️"
+            />
+            <ExportCard
+              title="导出账号列表"
+              description="导出所有班长账号信息（用户名、密码）"
+              disabled={exporting}
+              onClick={() => handleExport('accounts')}
+              icon="🔑"
+            />
+          </>
+        )}
       </div>
     </div>
   );

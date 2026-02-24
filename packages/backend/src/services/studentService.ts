@@ -115,8 +115,25 @@ export async function batchAddStudents(buffer: Buffer, targetClassId?: number) {
 
   for (let rowNum = 2; rowNum <= worksheet.rowCount; rowNum++) {
     const row = worksheet.getRow(rowNum);
-    const studentNo = row.getCell(1).text?.trim();
-    const name = row.getCell(2).text?.trim();
+
+    // Detect column layout: if targetClassId is provided, use A:学号 B:姓名
+    // Otherwise, use student_data format: A:年级 B:班级 C:学号 D:姓名
+    let studentNo: string;
+    let name: string;
+    let gradeName: string | undefined;
+    let className: string | undefined;
+
+    if (targetClassId) {
+      // Simple format: A=学号, B=姓名
+      studentNo = row.getCell(1).text?.trim() || '';
+      name = row.getCell(2).text?.trim() || '';
+    } else {
+      // Full format: A=年级, B=班级, C=学号, D=姓名
+      gradeName = row.getCell(1).text?.trim() || '';
+      className = row.getCell(2).text?.trim() || '';
+      studentNo = row.getCell(3).text?.trim() || '';
+      name = row.getCell(4).text?.trim() || '';
+    }
 
     if (!studentNo || !name) {
       if (studentNo || name) {
@@ -128,10 +145,8 @@ export async function batchAddStudents(buffer: Buffer, targetClassId?: number) {
 
     let classId = targetClassId;
     try {
-      // If no target classId, try reading grade/class from columns 3 & 4
+      // If no target classId, read grade/class from columns A & B
       if (!classId) {
-        const gradeName = row.getCell(3).text?.trim();
-        const className = row.getCell(4).text?.trim();
         if (!gradeName || !className) {
           results.failed++;
           results.failures.push({ row: rowNum, studentNo, name, reason: '缺少年级/班级信息' });
@@ -172,15 +187,15 @@ export async function getStudentTemplate(): Promise<Buffer> {
   const sheet = workbook.addWorksheet('学生名册模板');
   
   sheet.columns = [
-    { header: '学号', key: 'studentNo', width: 20 },
-    { header: '姓名', key: 'name', width: 15 },
     { header: '年级', key: 'grade', width: 15 },
     { header: '班级', key: 'class', width: 25 },
+    { header: '学号', key: 'studentNo', width: 20 },
+    { header: '姓名', key: 'name', width: 15 },
   ];
 
   // Add example rows
-  sheet.addRow({ studentNo: '2325111001', name: '张三', grade: '2023级', class: '计算机科学与技术1班' });
-  sheet.addRow({ studentNo: '2325111002', name: '李四', grade: '2023级', class: '计算机科学与技术1班' });
+  sheet.addRow({ grade: '2023级', class: '计算机科学与技术1班', studentNo: '2325111001', name: '张三' });
+  sheet.addRow({ grade: '2023级', class: '计算机科学与技术1班', studentNo: '2325111002', name: '李四' });
 
   // Style header row
   const headerRow = sheet.getRow(1);

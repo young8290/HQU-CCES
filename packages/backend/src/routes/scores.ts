@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { authMiddleware, monitorClassCheck } from '../middleware/auth.js';
 import * as scoreService from '../services/scoreService.js';
 import * as academicYearService from '../services/academicYearService.js';
+import { SCORE_CATEGORIES, type ScoreCategory } from '../config/scoreRules.js';
 
 const router = Router();
 
@@ -57,6 +58,19 @@ router.get('/student/:studentId', async (req: Request, res: Response) => {
 router.put('/', async (req: Request, res: Response) => {
   try {
     const { studentId, category, value, remark, academicYearId } = req.body;
+
+    // Role-based editability check
+    const catRule = SCORE_CATEGORIES[category as ScoreCategory];
+    if (catRule) {
+      if (catRule.editableBy === 'none') {
+        res.status(403).json({ error: `${catRule.label}为计算字段，不可手动修改` });
+        return;
+      }
+      if (catRule.editableBy === 'admin' && req.user!.role !== 'admin') {
+        res.status(403).json({ error: `${catRule.label}仅管理员可修改` });
+        return;
+      }
+    }
     
     let yearId = academicYearId;
     if (!yearId) {

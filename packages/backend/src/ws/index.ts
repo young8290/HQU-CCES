@@ -84,6 +84,20 @@ export function setupWebSocket(server: Server) {
           case 'score:update': {
             const { studentId, category, value, remark } = msg;
 
+            // Role-based editability check
+            const { SCORE_CATEGORIES } = await import('../config/scoreRules.js');
+            const catRule = SCORE_CATEGORIES[category as keyof typeof SCORE_CATEGORIES];
+            if (catRule) {
+              if (catRule.editableBy === 'none') {
+                ws.send(JSON.stringify({ type: 'score:error', studentId, category, error: `${catRule.label}为计算字段，不可修改` }));
+                return;
+              }
+              if (catRule.editableBy === 'admin' && ws.user!.role !== 'admin') {
+                ws.send(JSON.stringify({ type: 'score:error', studentId, category, error: `${catRule.label}仅管理员可修改` }));
+                return;
+              }
+            }
+
             // Get current academic year
             const currentYear = await academicYearService.getCurrentAcademicYear();
             if (!currentYear) {

@@ -94,7 +94,9 @@ export default function ImportPage() {
   };
 
   const handleImport = async () => {
-    if (!file || !selectedClass) return;
+    if (!file) return;
+    // personal import requires class selection
+    if (importType === 'personal' && !selectedClass) return;
     setUploading(true);
     setError('');
     setResult(null);
@@ -103,10 +105,10 @@ export default function ImportPage() {
       let endpoint = '';
       switch (importType) {
         case 'academic':
-          endpoint = `/import/academic/${selectedClass}`;
+          endpoint = '/import/academic';
           break;
         case 'sports':
-          endpoint = `/import/sports/${selectedClass}`;
+          endpoint = '/import/sports';
           break;
         case 'personal':
           endpoint = `/import/personal/${selectedClass}`;
@@ -124,6 +126,9 @@ export default function ImportPage() {
   };
 
   const availableTypes = IMPORT_TYPES.filter((t) => isAdmin || !t.adminOnly);
+
+  // academic/sports imports don't need class selection
+  const needsClassSelection = importType === 'personal';
 
   return (
     <div className="space-y-6">
@@ -150,7 +155,8 @@ export default function ImportPage() {
         ))}
       </div>
 
-      {/* Target Selection */}
+      {/* Target Selection - only for personal import */}
+      {needsClassSelection && (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {isAdmin && (
           <div>
@@ -182,6 +188,7 @@ export default function ImportPage() {
           </select>
         </div>
       </div>
+      )}
 
       {/* File upload */}
       <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-6">
@@ -203,7 +210,7 @@ export default function ImportPage() {
                 <strong>学业成绩导入说明：</strong>
                 <br />• 读取F列（GPA）数据
                 <br />• 自动计算学业学术素质分 = (GPA + 2.5) × 8
-                <br />• 学号自动匹配学生
+                <br />• 按学号自动匹配全部学生，无需选择年级班级
               </div>
             )}
             {importType === 'sports' && (
@@ -211,14 +218,15 @@ export default function ImportPage() {
                 <strong>体育基础分导入说明：</strong>
                 <br />• 读取H列（体育成绩）数据
                 <br />• 自动计算体育基础分 = 原始分 × 0.04
-                <br />• 学号自动匹配学生
+                <br />• 按学号自动匹配全部学生，无需选择年级班级
               </div>
             )}
             {importType === 'personal' && (
               <div>
                 <strong>个人综测填写表导入说明：</strong>
                 <br />• 每个工作表对应一个学生
-                <br />• 自动搜索关键词定位分数（如"德育"、"创新"等）
+                <br />• B1=学号, D1=姓名, B3-H3=各项分数, B4-H4=备注
+                <br />• 列顺序: 德育(100) / 创新(13) / 体育附加(3) / 美育(6) / 劳动(4) / 公益(10) / 附加(5)
                 <br />• 不匹配的学生会记录在失败列表中
               </div>
             )}
@@ -226,7 +234,7 @@ export default function ImportPage() {
 
           <button
             onClick={handleImport}
-            disabled={!file || !selectedClass || uploading}
+            disabled={!file || (needsClassSelection && !selectedClass) || uploading}
             className="px-6 py-2.5 rounded-xl bg-primary-500 text-white font-medium hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {uploading ? '导入中...' : '开始导入'}
@@ -245,18 +253,17 @@ export default function ImportPage() {
         <div className="rounded-2xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-500/10 p-6">
           <h3 className="font-semibold text-green-700 dark:text-green-400 mb-2">导入结果</h3>
           <div className="space-y-1 text-sm text-green-600 dark:text-green-400">
-            <p>成功: {result.success ?? result.matched ?? 0} 条</p>
-            {result.failed !== undefined && <p>失败: {result.failed} 条</p>}
-            {result.skipped !== undefined && <p>跳过: {result.skipped} 条</p>}
-            {result.failedRecords?.length > 0 && (
+            <p>成功: {result.successCount ?? 0} 条</p>
+            {(result.failCount ?? 0) > 0 && <p className="text-red-500">失败: {result.failCount} 条</p>}
+            {result.failures?.length > 0 && (
               <div className="mt-2">
-                <p className="font-medium">失败记录:</p>
-                <ul className="list-disc pl-5 mt-1">
-                  {result.failedRecords.slice(0, 10).map((r: any, i: number) => (
+                <p className="font-medium text-red-500">失败记录:</p>
+                <ul className="list-disc pl-5 mt-1 text-red-500">
+                  {result.failures.slice(0, 20).map((r: any, i: number) => (
                     <li key={i}>{r.studentNo || r.name}: {r.reason}</li>
                   ))}
-                  {result.failedRecords.length > 10 && (
-                    <li>...还有 {result.failedRecords.length - 10} 条</li>
+                  {result.failures.length > 20 && (
+                    <li>...还有 {result.failures.length - 20} 条</li>
                   )}
                 </ul>
               </div>

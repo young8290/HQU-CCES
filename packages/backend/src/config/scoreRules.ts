@@ -1,16 +1,17 @@
 // Score category rules: limits and editability
+// editableBy: 'all' = everyone can edit, 'admin' = admin only, 'none' = computed/readonly
 export const SCORE_CATEGORIES = {
-  moral: { label: '德育测评', maxValue: 100, editable: true },
-  academic: { label: '学业学术素质', maxValue: 60, editable: true },
-  innovation: { label: '创新与实践能力', maxValue: 13, editable: true },
-  sports_base: { label: '体育基础分', maxValue: null, editable: false },
-  sports_reward: { label: '体育奖励分', maxValue: 3, editable: true },
-  sports_total: { label: '体育总分', maxValue: 7, editable: false },
-  aesthetics: { label: '美育', maxValue: 6, editable: true },
-  labor: { label: '劳动教育', maxValue: 4, editable: true },
-  public_service: { label: '公益服务与社会工作', maxValue: 10, editable: true },
-  bonus: { label: '附加分', maxValue: 5, editable: true },
-  total: { label: '总分', maxValue: null, editable: false },
+  moral: { label: '德育测评', maxValue: 100, editable: true, editableBy: 'all' as const },
+  academic: { label: '学业学术素质', maxValue: 60, editable: true, editableBy: 'admin' as const },
+  innovation: { label: '创新与实践能力', maxValue: 13, editable: true, editableBy: 'all' as const },
+  sports_base: { label: '体育基础分', maxValue: null, editable: true, editableBy: 'admin' as const },
+  sports_reward: { label: '体育奖励分', maxValue: 3, editable: true, editableBy: 'all' as const },
+  sports_total: { label: '体育总分', maxValue: 7, editable: false, editableBy: 'none' as const },
+  aesthetics: { label: '美育', maxValue: 6, editable: true, editableBy: 'all' as const },
+  labor: { label: '劳动教育', maxValue: 4, editable: true, editableBy: 'all' as const },
+  public_service: { label: '公益服务与社会工作', maxValue: 10, editable: true, editableBy: 'all' as const },
+  bonus: { label: '附加分', maxValue: 5, editable: true, editableBy: 'all' as const },
+  total: { label: '总分', maxValue: null, editable: false, editableBy: 'none' as const },
 } as const;
 
 export type ScoreCategory = keyof typeof SCORE_CATEGORIES;
@@ -36,8 +37,8 @@ export function calculateSportsTotal(sportsBase: number, sportsReward: number): 
 }
 
 export function calculateTotal(scores: Record<string, number>): number {
-  const total = (scores.moral || 0)
-    + (scores.academic || 0)
+  // 总分不包含德育测评(moral)
+  const total = (scores.academic || 0)
     + (scores.innovation || 0)
     + (scores.sports_total || 0)
     + (scores.aesthetics || 0)
