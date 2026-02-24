@@ -1,6 +1,6 @@
 # HQU CS 综测管理系统
 
-> 华侨大学 计算机科学与技术学院 学生素质综合测评管理系统  
+> 华侨大学 计算机科学与技术学院 学生素质综合测评管理系统
 > 基于 B/S 架构的全栈 Web 应用，支持实时分数编辑、Excel 批量导入导出、多角色权限控制
 
 ---
@@ -35,25 +35,17 @@
 
 ### 安装与启动
 
-```bash
-# 1. 进入项目目录
-cd packages
+项目采用 **npm workspaces** 管理前后端，所有操作在仓库根目录完成即可：
 
-# 2. 安装根目录依赖（concurrently）
+```bash
+# 1. 安装全部依赖（自动安装 backend + frontend）
 npm install
 
-# 3. 安装后端依赖
-cd backend && npm install
+# 2. 初始化数据库 & 创建默认管理员账号
+npm run db:push
+npm run db:seed
 
-# 4. 初始化数据库 & 创建默认管理员账号
-npx prisma db push
-npx prisma db seed
-
-# 5. 安装前端依赖
-cd ../frontend && npm install
-
-# 6. 返回根目录，一键启动前后端
-cd ..
+# 3. 一键启动前后端开发服务器
 npm run dev
 ```
 
@@ -75,7 +67,7 @@ npm run dev
 ### 常用命令
 
 ```bash
-# 同时启动前后端开发服务器
+# 同时启动前后端
 npm run dev
 
 # 仅启动后端
@@ -87,8 +79,12 @@ npm run dev:frontend
 # 构建前端生产版本
 npm run build
 
-# 重置数据库（清除所有数据并重建）
-npm run db:reset
+# 数据库相关
+npm run db:push          # 同步 schema 到数据库
+npm run db:seed          # 写入种子数据
+npm run db:generate      # 生成 Prisma Client
+npm run db:migrate       # 数据库迁移
+npm run db:studio        # 打开 Prisma Studio 可视化管理
 ```
 
 ---
@@ -116,6 +112,7 @@ npm run db:reset
 | 认证 | JWT + bcrypt |
 | 实时通信 | WebSocket (ws) |
 | 文件处理 | ExcelJS (xlsx 读写) |
+| 包管理 | npm workspaces (monorepo) |
 
 ---
 
@@ -255,19 +252,14 @@ npm run db:reset
 #### 学生管理
 
 1. **查看学生列表**：选择年级 → 选择班级，表格显示该班全部学生
-2. **添加学生**：
-   - 在表格下方输入学号和姓名，点击「添加」
+2. **添加学生**：在表格下方输入学号和姓名，点击「添加」
 3. **删除学生**：点击学生行的「删除」按钮
-4. **批量删除**：
-   - 按班级删除：删除整个班级的所有学生
-   - 按年级删除：删除整个年级的所有学生
+4. **批量删除**：按班级或按年级删除
 
 #### 批量导入学生
 
 1. 点击「批量导入」按钮
-2. 上传 Excel 文件（.xlsx），格式要求：
-   - A列：学号
-   - B列：姓名
+2. 上传 Excel 文件（.xlsx），格式：A列=学号，B列=姓名
 3. 系统自动导入到当前选中的班级
 4. 导入完成后显示结果：新增 N 人，跳过 M 人（已存在的学号跳过）
 
@@ -281,52 +273,31 @@ npm run db:reset
 
 **入口**：http://localhost:3000/import
 
-支持三种数据批量导入。
+支持三种数据批量导入：
 
 #### 5.1 导入学业学术素质成绩（管理员）
 
-导入学业学术素质的原始成绩文件。
-
 1. 选择「学业学术素质」标签页
 2. 可选择目标班级（留空则按学号全局匹配）
-3. 上传 Excel 文件，格式要求：
-   - A列：学号
-   - B列：姓名
-   - F列：绩点
-4. 计算公式：**学业分 = (绩点 + 2.5) × 8**，四舍五入保留两位小数
-5. 点击「开始导入」
-6. 导入完成后显示：成功 N 条，失败 M 条
+3. 上传 Excel 文件：A列=学号，B列=姓名，F列=绩点
+4. 计算公式：**学业分 = (绩点 + 2.5) × 8**（四舍五入保留两位小数）
 
 #### 5.2 导入体育基础分（管理员）
 
-导入体育课成绩文件。
-
 1. 选择「体育基础分」标签页
-2. 可选择目标班级（留空则按学号全局匹配）
-3. 上传 Excel 文件，格式要求：
-   - A列：学号
-   - B列：姓名
-   - H列：基础分
-4. 计算公式：**体育基础分 = 原始分 × 0.04**，四舍五入保留两位小数
-5. 导入后体育总分自动重算
+2. 上传 Excel 文件：A列=学号，B列=姓名，H列=基础分
+3. 计算公式：**体育基础分 = 原始分 × 0.04**（四舍五入保留两位小数）
 
 #### 5.3 导入个人综测填写表（管理员和班长）
 
-导入个人综测填写表的汇总数据。
-
 1. 选择「个人综测表」标签页
-2. **班长**：自动限定为本班；**管理员**：可选择目标班级
-3. 上传按照学校格式编制的个人综测填写表 Excel
+2. 班长自动限定为本班；管理员可选择目标班级
+3. 上传按学校格式编制的个人综测填写表 Excel
 4. 系统自动解析各维度分数和备注
-5. 已有数据将被覆盖更新
 
 #### 导入日志
 
-页面底部「导入日志」区域显示最近的导入记录：
-
-| 时间 | 类型 | 成功数 | 失败数 | 操作人 |
-|------|------|--------|--------|--------|
-| 2026-02-24 15:30 | 学业学术 | 42 | 3 | admin |
+页面底部显示最近的导入记录（时间、类型、成功/失败数、操作人）。
 
 ---
 
@@ -334,37 +305,13 @@ npm run db:reset
 
 **入口**：http://localhost:3000/export
 
-提供五种导出选项：
-
-#### 6.1 导出附件2 — 综测成绩汇总表
-
-- 选择目标班级
-- 按照学校附件2模板格式生成 Excel 文件
-- 包含全部学生的各维度成绩汇总
-
-#### 6.2 导出附件4 — 学年总评表
-
-- 选择目标班级
-- 按照学校附件4模板格式生成 Excel 文件
-- 包含学生综合素质评价总评
-
-#### 6.3 批量导出全部附件（ZIP）
-
-- 选择目标年级
-- 系统为该年级每个班级分别生成附件2和附件4
-- 打包为 ZIP 文件下载
-- 目录结构：`{年级}_{班级}_综测表/附件2-xxx.xlsx` + `附件4-xxx.xlsx`
-
-#### 6.4 导出失败记录
-
-- 导出最近导入操作中的失败记录为 Excel
-- 包含列：所在行、学号、姓名、失败原因
-- 用于排查导入问题
-
-#### 6.5 导出账号列表
-
-- 导出所有班长账号信息为 Excel
-- 包含列：年级、班级、用户名、显示名称、角色
+| 导出项 | 说明 |
+|--------|------|
+| **附件2** — 综测成绩汇总表 | 选择班级，按学校模板生成 Excel |
+| **附件4** — 学年总评表 | 选择班级，按学校模板生成 Excel |
+| **批量导出（ZIP）** | 选择年级，为每个班级生成附件2+附件4并打包 |
+| **失败记录** | 导出最近导入的失败记录 |
+| **账号列表** | 导出所有班长账号信息 |
 
 ---
 
@@ -372,29 +319,19 @@ npm run db:reset
 
 **入口**：http://localhost:3000/accounts
 
-#### 查看账号
-
-页面分两个区域：
-- **管理员账号列表**：显示用户名、显示名、创建时间
-- **班长账号列表**：显示用户名、显示名、年级、班级、操作按钮
-
 #### 批量生成班长账号
 
-1. 点击「批量生成」按钮
-2. 选择目标年级
-3. 点击「确认生成」
-4. 系统为该年级下每个班级自动创建一个班长账号：
-   - **用户名格式**：`monitor_{年级}_{班级名}`
-   - **初始密码**：随机 8 位字母数字
-   - **显示名称**：`{班级名}班长`
-5. 生成完成后显示创建的账号数量
-6. 已有账号的班级将被跳过
+1. 点击「批量生成」→ 选择目标年级 → 确认
+2. 系统为每个班级创建一个班长账号：
+   - 用户名：`monitor_{年级}_{班级名}`
+   - 初始密码：随机 8 位字母数字
+3. 已有账号的班级自动跳过
 
 #### 账号操作
 
-- **重置密码**：点击班长账号行的「重置密码」→ 系统生成新的随机密码并显示
-- **删除账号**：点击「删除」→ 确认后删除该班长账号
-- **导出账号**：在导出页面可导出全部账号列表为 Excel
+- **重置密码**：生成新的随机密码
+- **删除账号**：确认后删除
+- **导出账号**：在导出页面导出为 Excel
 
 ---
 
@@ -402,28 +339,13 @@ npm run db:reset
 
 **入口**：http://localhost:3000/settings
 
-#### 学年管理
-
-- **创建学年**：输入学年名称（如"2025-2026学年"）点击创建
-- **激活学年**：点击学年旁的「设为当前」按钮，该学年将作为评分关联的学年
-- 同一时间只能有一个激活的学年
-
-#### 修改密码
-
-1. 输入当前密码
-2. 输入新密码（至少6个字符）
-3. 确认新密码
-4. 点击「修改密码」
-
-#### 账号信息
-
-显示当前登录用户的基本信息：用户名、角色、关联班级等。
+- **学年管理**：创建学年、设为当前激活学年
+- **修改密码**：输入旧密码 + 新密码（≥6位）
+- **账号信息**：显示当前用户基本信息
 
 ---
 
 ## 评分规则
-
-系统支持以下 11 个评分维度：
 
 | 维度 | 代码 | 分数上限 | 可编辑 | 说明 |
 |------|------|:--------:|:------:|------|
@@ -450,14 +372,14 @@ npm run db:reset
 
 ```
 学业学术素质 = (绩点 + 2.5) × 8        # 四舍五入保留两位小数
-体育基础分 = 原始分 × 0.04              # 四舍五入保留两位小数
+体育基础分   = 原始分 × 0.04            # 四舍五入保留两位小数
 ```
 
 ---
 
 ## API 接口
 
-所有 API 以 `/api` 为前缀，需要在请求头携带 `Authorization: Bearer <token>`（登录接口除外）。
+所有 API 以 `/api` 为前缀，需在请求头携带 `Authorization: Bearer <token>`（登录接口除外）。
 
 ### 认证
 
@@ -492,7 +414,7 @@ npm run db:reset
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/students` | 获取学生列表（?classId=过滤） |
+| GET | `/api/students` | 获取学生列表（?classId= 过滤） |
 | POST | `/api/students` | 添加学生 |
 | PUT | `/api/students/:id` | 修改学生信息 |
 | DELETE | `/api/students/:id` | 删除学生 |
@@ -551,40 +473,58 @@ npm run db:reset
 ## 项目结构
 
 ```
-packages/
-├── package.json              # 根 package.json (npm run dev 启动全栈)
-├── backend/                  # 后端
-│   ├── .env                  # 环境变量 (数据库路径、JWT密钥、端口)
-│   ├── prisma/
-│   │   ├── schema.prisma     # 数据库模型定义
-│   │   └── seed.ts           # 种子数据 (默认管理员+学年)
-│   └── src/
-│       ├── index.ts          # Express 应用入口
-│       ├── config/           # 配置 (评分规则、数据库)
-│       ├── middleware/       # 中间件 (认证、权限)
-│       ├── routes/           # API 路由
-│       ├── services/         # 业务逻辑层
-│       └── ws/               # WebSocket 服务
-├── frontend/                 # 前端
-│   ├── astro.config.mjs      # Astro 配置 (含 API 代理)
-│   ├── public/               # 静态资源 (favicon、字体)
-│   └── src/
-│       ├── components/       # React 组件
-│       │   ├── auth/         # 登录表单
-│       │   ├── layout/       # 侧边栏导航
-│       │   ├── dashboard/    # 仪表盘
-│       │   ├── scores/       # 分数编辑 (ScoresPage + ScoreEditor)
-│       │   ├── students/     # 学生管理
-│       │   ├── import/       # 数据导入
-│       │   ├── export/       # 数据导出
-│       │   ├── accounts/     # 账号管理
-│       │   └── settings/     # 系统设置
-│       ├── hooks/            # React Hooks (useAuth, useScores)
-│       ├── layouts/          # Astro 布局
-│       ├── lib/              # 工具库 (API、认证、WebSocket、验证)
-│       ├── pages/            # Astro 页面路由
-│       └── styles/           # 全局样式
-└── data/                     # SQLite 数据库文件目录
+.
+├── package.json                    # 根配置 (npm workspaces + 统一脚本)
+├── package-lock.json               # 全局锁文件
+├── README.md
+├── 项目功能架构设计.md
+│
+├── packages/
+│   ├── backend/                    # 后端 (comprehensive-eval-backend)
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   ├── .env                    # 环境变量 (DATABASE_URL, JWT_SECRET, PORT)
+│   │   ├── prisma/
+│   │   │   ├── schema.prisma       # 数据库模型定义
+│   │   │   └── seed.ts             # 种子数据 (默认管理员 + 学年)
+│   │   ├── src/
+│   │   │   ├── index.ts            # Express 应用入口
+│   │   │   ├── config/             # 配置 (评分规则、数据库)
+│   │   │   ├── middleware/         # 中间件 (认证、权限、错误处理)
+│   │   │   ├── routes/             # API 路由
+│   │   │   ├── services/           # 业务逻辑层
+│   │   │   ├── utils/              # 工具函数
+│   │   │   └── ws/                 # WebSocket 服务
+│   │   └── templates/              # 导出 Excel 模板
+│   │
+│   ├── frontend/                   # 前端 (comprehensive-eval-frontend)
+│   │   ├── package.json
+│   │   ├── astro.config.mjs        # Astro 配置 (含 API 代理)
+│   │   ├── tsconfig.json
+│   │   ├── public/                 # 静态资源 (字体、背景、模板)
+│   │   └── src/
+│   │       ├── assets/             # 图片资源
+│   │       ├── components/         # React 组件
+│   │       │   ├── auth/           # 登录表单
+│   │       │   ├── layout/         # 侧边栏导航
+│   │       │   ├── dashboard/      # 仪表盘
+│   │       │   ├── scores/         # 分数编辑
+│   │       │   ├── students/       # 学生管理
+│   │       │   ├── import/         # 数据导入
+│   │       │   ├── export/         # 数据导出
+│   │       │   ├── accounts/       # 账号管理
+│   │       │   └── settings/       # 系统设置
+│   │       ├── hooks/              # React Hooks (useAuth, useScores)
+│   │       ├── layouts/            # Astro 布局
+│   │       ├── lib/                # 工具库 (API、认证、WebSocket)
+│   │       ├── pages/              # Astro 页面路由
+│   │       └── styles/             # 全局样式
+│   │
+│   └── data/                       # SQLite 数据库文件目录
+│
+├── data/                           # 数据资料
+├── templates/                      # 附件模板
+└── mizu-light-astro-theme-main/    # UI 参考主题
 ```
 
 ---
@@ -594,23 +534,28 @@ packages/
 ### Q: 如何重置整个数据库？
 
 ```bash
-cd packages
-npm run db:reset
+npm run db:push -- --force-reset
+npm run db:seed
 ```
 
-这会清除所有数据并重新创建默认管理员账号（admin/admin123）和默认学年。
+这会清除所有数据并重建默认管理员账号（admin/admin123）和默认学年。
 
 ### Q: 忘记了管理员密码怎么办？
 
-运行 `npm run db:reset` 重置数据库，或直接删除 `data/comprehensive-eval.db` 文件后重新执行 `npm run db:push && npm run db:seed`。
+删除 `packages/data/comprehensive-eval.db` 后重新运行：
+
+```bash
+npm run db:push
+npm run db:seed
+```
 
 ### Q: 如何备份数据？
 
-直接复制 `data/comprehensive-eval.db` 文件即可。SQLite 数据库是单文件存储。
+直接复制 `packages/data/comprehensive-eval.db` 文件即可。SQLite 数据库是单文件存储。
 
 ### Q: 端口被占用怎么办？
 
-- 后端端口：修改 `packages/backend/.env` 中的 `PORT` 值
+- 后端端口：修改 `packages/backend/.env` 中的 `PORT`
 - 前端端口：修改 `packages/frontend/package.json` 中 dev 脚本的 `--port` 参数
 - 同时更新 `packages/frontend/astro.config.mjs` 中的代理目标地址
 
@@ -620,7 +565,7 @@ npm run db:reset
 
 ### Q: 多人同时编辑会冲突吗？
 
-不会。系统通过 WebSocket 实现实时同步，多人编辑同一班级时，修改会自动广播给所有在线用户。以最后一次提交为准。
+不会。系统通过 WebSocket 实现实时同步，多人编辑同一班级时修改会自动广播给所有在线用户，以最后一次提交为准。
 
 ### Q: 前端开发服务器访问 API 返回 404？
 
