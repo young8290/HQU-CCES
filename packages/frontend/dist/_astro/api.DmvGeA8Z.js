@@ -1,0 +1,9 @@
+var d={exports:{}},c={};/**
+ * @license React
+ * react-jsx-runtime.production.js
+ *
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */var l;function h(){if(l)return c;l=1;var o=Symbol.for("react.transitional.element"),t=Symbol.for("react.fragment");function a(n,e,r){var s=null;if(r!==void 0&&(s=""+r),e.key!==void 0&&(s=""+e.key),"key"in e){r={};for(var i in e)i!=="key"&&(r[i]=e[i])}else r=e;return e=r.ref,{$$typeof:o,type:n,key:s,ref:e!==void 0?e:null,props:r}}return c.Fragment=t,c.jsx=a,c.jsxs=a,c}var m;function p(){return m||(m=1,d.exports=h()),d.exports}var R=p();const f="/api";async function u(o,t={}){const a=localStorage.getItem("token"),n={...t.headers};a&&(n.Authorization=`Bearer ${a}`);let e=t.body;e&&!(e instanceof FormData)&&(n["Content-Type"]="application/json",e=JSON.stringify(e));const r=await fetch(`${f}${o}`,{method:t.method||"GET",headers:n,body:e});if(r.status===401)throw localStorage.removeItem("token"),localStorage.removeItem("user"),window.location.href="/login",new Error("登录已过期");const s=r.headers.get("content-type")||"";if(s.includes("spreadsheet")||s.includes("zip")){if(!r.ok)throw new Error("下载失败");return await r.blob()}const i=await r.json();if(!r.ok)throw new Error(i.error||"请求失败");return i}const x={get:o=>u(o),post:(o,t)=>u(o,{method:"POST",body:t}),put:(o,t)=>u(o,{method:"PUT",body:t}),delete:(o,t)=>u(o,{method:"DELETE",body:t}),upload:(o,t,a="file")=>{let n;return t instanceof FormData?n=t:(n=new FormData,n.append(a,t)),u(o,{method:"POST",body:n})},download:async(o,t,a)=>{const e=await u(o,{method:a?"POST":"GET",body:a}),r=URL.createObjectURL(e),s=document.createElement("a");s.href=r,s.download=t,s.click(),URL.revokeObjectURL(r)}};export{x as a,R as j};

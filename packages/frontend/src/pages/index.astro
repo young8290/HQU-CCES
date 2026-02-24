@@ -1,0 +1,16 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="综测管理系统">
+  <div id="app-root"></div>
+  <script>
+    // Redirect based on auth state
+    const token = localStorage.getItem('token');
+    if (token) {
+      window.location.href = '/dashboard';
+    } else {
+      window.location.href = '/login';
+    }
+  </script>
+</Layout>

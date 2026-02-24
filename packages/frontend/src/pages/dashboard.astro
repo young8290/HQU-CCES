@@ -1,0 +1,37 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+<Layout title="仪表盘 - 综测管理系统">
+  <div class="flex h-screen bg-neutral-50 dark:bg-neutral-950">
+    <div id="sidebar-root"></div>
+    <main class="flex-1 overflow-auto">
+      <div class="p-6 lg:p-8 max-w-7xl mx-auto">
+        <div id="dashboard-root"></div>
+      </div>
+    </main>
+  </div>
+</Layout>
+
+<script>
+  import { isLoggedIn } from '../lib/auth';
+  if (!isLoggedIn()) {
+    window.location.href = '/login';
+  }
+</script>
+
+<script>
+  import { createElement } from 'react';
+  import { createRoot } from 'react-dom/client';
+  import Sidebar from '../components/layout/Sidebar';
+  import DashboardContent from '../components/dashboard/DashboardContent';
+
+  const sidebarEl = document.getElementById('sidebar-root');
+  if (sidebarEl) {
+    createRoot(sidebarEl).render(createElement(Sidebar, { currentPath: '/dashboard' }));
+  }
+
+  const dashboardEl = document.getElementById('dashboard-root');
+  if (dashboardEl) {
+    createRoot(dashboardEl).render(createElement(DashboardContent));
+  }
+</script>

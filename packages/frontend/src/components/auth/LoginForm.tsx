@@ -1,0 +1,96 @@
+import { useState, type FormEvent } from 'react';
+import { useAuth } from '../../hooks/useAuth';
+
+export default function LoginForm() {
+  const { login } = useAuth();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const user = await login(username, password);
+      window.location.href = '/dashboard';
+    } catch (err: any) {
+      setError(err.message || '登录失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 via-white to-neutral-100 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 px-4">
+      <div className="w-full max-w-md">
+        {/* Logo / Title */}
+        <div className="text-center mb-8 animate-fadeUp">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary-500 text-white text-2xl font-bold mb-4">
+            综
+          </div>
+          <h1 className="text-3xl font-bold text-neutral-950 dark:text-white font-headings">
+            综测管理系统
+          </h1>
+          <p className="mt-2 text-neutral-500 dark:text-neutral-400">
+            计算机科学与技术学院
+          </p>
+        </div>
+
+        {/* Login Card */}
+        <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-xl border border-neutral-200 dark:border-neutral-800 p-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm">
+                {error}
+              </div>
+            )}
+
+            <div>
+              <label htmlFor="username" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1.5 font-headings">
+                用户名
+              </label>
+              <input
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="请输入用户名"
+                required
+                className="w-full h-12 px-4 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1.5 font-headings">
+                密码
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="请输入密码"
+                required
+                className="w-full h-12 px-4 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full h-12 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-medium transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {loading ? '登录中...' : '登 录'}
+            </button>
+          </form>
+        </div>
+
+        <p className="text-center mt-6 text-xs text-neutral-400 dark:text-neutral-500">
+          © 2025-2026 计算机科学与技术学院 学术部
+        </p>
+      </div>
+    </div>
+  );
+}
