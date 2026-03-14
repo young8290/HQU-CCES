@@ -1,0 +1,169 @@
+import { WebSocketServer, WebSocket } from 'ws';
+import { Server } from 'http';
+import { verifyToken, TokenPayload } from '../utils/token.js';
+import * as scoreService from '../services/scoreService.js';
+import * as academicYearService from '../services/academicYearService.js';
+
+interface AuthenticatedWebSocket extends WebSocket {
+  user?: TokenPayload;
+  classId?: number;
+  isAlive?: boolean;
+}
+
+const classrooms = new Map<number, Set<AuthenticatedWebSocket>>();
+
+export function setupWebSocket(server: Server) {
+  const wss = new WebSocketServer({ server, path: '/ws' });
+
+  // Heartbeat
+  const interval = setInterval(() => {
+    wss.clients.forEach((ws) => {
+      const client = ws as AuthenticatedWebSocket;
+      if (client.isAlive === false) return client.terminate();
+      client.isAlive = false;
+      client.ping();
+    });
+  }, 30000);
+
+  wss.on('close', () => clearInterval(interval));
+
+  wss.on('connection', (ws: AuthenticatedWebSocket, req) => {
+    ws.isAlive = true;
+    ws.on('pong', () => { ws.isAlive = true; });
+
+    // Authenticate via query param token
+    const url = new URL(req.url || '', `http://${req.headers.host}`);
+    const token = url.searchParams.get('token');
+
+    if (!token) {
+      ws.send(JSON.stringify({ type: 'error', error: '未提供认证Token' }));
+      ws.close();
+      return;
+    }
+
+    try {
+      const user = verifyToken(token);
+      ws.user = user;
+    } catch {
+      ws.send(JSON.stringify({ type: 'error', error: 'Token无效或已过期' }));
+      ws.close();
+      return;
+    }
+
+    ws.send(JSON.stringify({ type: 'connected', message: '连接成功' }));
+
+    ws.on('message', async (data) => {
+      try {
+        const msg = JSON.parse(data.toString());
+
+        switch (msg.type) {
+          case 'join:class': {
+            const classId = msg.classId;
+            // Permission check
+            if (ws.user!.role === 'monitor' && ws.user!.classId !== classId) {
+              ws.send(JSON.stringify({ type: 'error', error: '无权访问该班级' }));
+              return;
+            }
+
+            // Leave previous classroom
+            if (ws.classId && classrooms.has(ws.classId)) {
+              classrooms.get(ws.classId)!.delete(ws);
+            }
+
+            // Join new classroom
+            ws.classId = classId;
+            if (!classrooms.has(classId)) {
+              classrooms.set(classId, new Set());
+            }
+            classrooms.get(classId)!.add(ws);
+
+            ws.send(JSON.stringify({ type: 'joined:class', classId }));
+            break;
+          }
+
+          case 'score:update': {
+            const { studentId, category, value, remark } = msg;
+
+            // Role-based editability check
+            const { SCORE_CATEGORIES } = await import('../config/scoreRules.js');
+            const catRule = SCORE_CATEGORIES[category as keyof typeof SCORE_CATEGORIES];
+            if (catRule) {
+              if (catRule.editableBy === 'none') {
+                ws.send(JSON.stringify({ type: 'score:error', studentId, category, error: `${catRule.label}为计算字段，不可修改` }));
+                return;
+              }
+              if (catRule.editableBy === 'admin' && ws.user!.role !== 'admin') {
+                ws.send(JSON.stringify({ type: 'score:error', studentId, category, error: `${catRule.label}仅管理员可修改` }));
+                return;
+              }
+            }
+
+            // Get current academic year
+            const currentYear = await academicYearService.getCurrentAcademicYear();
+            if (!currentYear) {
+              ws.send(JSON.stringify({ type: 'score:error', studentId, category, error: '未设置当前学年' }));
+              return;
+            }
+
+            try {
+              const scores = await scoreService.updateScore({
+                studentId,
+                academicYearId: msg.academicYearId || currentYear.id,
+                category,
+                value: parseFloat(value),
+                remark,
+                updatedBy: ws.user!.userId,
+              });
+
+              // Send confirmation back to sender
+              ws.send(JSON.stringify({
+                type: 'score:updated',
+                studentId,
+                category,
+                scores,
+                updatedAt: new Date().toISOString(),
+                success: true,
+              }));
+
+              // Broadcast to other clients in the same classroom
+              if (ws.classId && classrooms.has(ws.classId)) {
+                classrooms.get(ws.classId)!.forEach((client) => {
+                  if (client !== ws && client.readyState === WebSocket.OPEN) {
+                    client.send(JSON.stringify({
+                      type: 'score:sync',
+                      studentId,
+                      category,
+                      scores,
+                      updatedBy: ws.user!.username,
+                    }));
+                  }
+                });
+              }
+            } catch (err: any) {
+              ws.send(JSON.stringify({
+                type: 'score:error',
+                studentId,
+                category,
+                error: err.message,
+              }));
+            }
+            break;
+          }
+        }
+      } catch (err) {
+        ws.send(JSON.stringify({ type: 'error', error: '消息格式错误' }));
+      }
+    });
+
+    ws.on('close', () => {
+      if (ws.classId && classrooms.has(ws.classId)) {
+        classrooms.get(ws.classId)!.delete(ws);
+        if (classrooms.get(ws.classId)!.size === 0) {
+          classrooms.delete(ws.classId);
+        }
+      }
+    });
+  });
+
+  return wss;
+}
