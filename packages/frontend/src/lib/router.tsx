@@ -70,6 +70,9 @@ export function useCurrentPath() {
     window.addEventListener('popstate', updatePath);
     window.addEventListener(routeChangeEvent, updatePath);
 
+    // Catch up with any navigation that happened before the listeners mounted.
+    updatePath();
+
     return () => {
       window.removeEventListener('popstate', updatePath);
       window.removeEventListener(routeChangeEvent, updatePath);
